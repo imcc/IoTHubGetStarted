@@ -12,7 +12,7 @@ namespace SimulatedDevice
     //https://docs.microsoft.com/zh-cn/azure/iot-hub/iot-hub-csharp-csharp-getstarted
     class Program
     {
-        private const string _deviceConnectionString = "HostName=IoT-Free-Demo.azure-devices.net;DeviceId=Device01;SharedAccessKey=GpYaoEW9QtfPDobUwucJH1K7L13LDfrt8Xhke0qWt1A=";
+        private const string _deviceConnectionString = "{device connection string}";
         private static DeviceClient _deviceClient;
 
         static void Main(string[] args)
@@ -21,6 +21,7 @@ namespace SimulatedDevice
             _deviceClient = DeviceClient.CreateFromConnectionString(_deviceConnectionString, TransportType.Mqtt);
 
             SendDeviceToCloudMessageAsync();
+            ReceiveC2DAsync();
             Console.ReadKey(false);
         }
 
@@ -51,6 +52,29 @@ namespace SimulatedDevice
                 Console.WriteLine($"{DateTime.Now} > Sending message:{messageJson}");
 
                 await Task.Delay(5000);
+            }
+        }
+
+
+        //在设备收到消息时，ReceiveAsync 方法以异步方式返回收到的消息。 
+        //它在可指定的超时期限过后返回 null（在本例中，使用的是默认值一分钟）。 
+        //当应用收到 null 时，它应继续等待新消息。
+        //https://docs.microsoft.com/zh-cn/azure/iot-hub/iot-hub-csharp-csharp-c2d
+        private static async void ReceiveC2DAsync()
+        {
+            Console.WriteLine("\nReceiving cloud to device message from service");
+            while (true)
+            {
+                var receiveMessage = await _deviceClient.ReceiveAsync();
+                if (receiveMessage == null) continue;
+
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine($"Received message:{Encoding.ASCII.GetString(receiveMessage.GetBytes())}");
+                Console.ResetColor();
+
+                //将通知 IoT 中心，指出已成功处理消息。 可以安全地从设备队列中删除该消息。 
+                //如果因故导致设备应用无法完成消息处理作业，IoT 中心将再传递一次。
+                await _deviceClient.CompleteAsync(receiveMessage);
             }
         }
     }
